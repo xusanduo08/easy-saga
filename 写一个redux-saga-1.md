@@ -120,9 +120,7 @@ function sagaMiddlewareFactory(){
 
 
 
-本节代码地址：
-
-
+本节代码地址：[https://github.com/xusanduo08/easy-saga/tree/master/%E5%86%99%E4%B8%80%E4%B8%AAredux-saga-1](https://github.com/xusanduo08/easy-saga/tree/master/写一个redux-saga-1)
 
 
 
