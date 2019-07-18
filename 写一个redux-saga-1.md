@@ -36,10 +36,26 @@ saga结构大致有以下几个部分：
 
 * task：proc方法运行后的返回值，代表一次saga任务。
 
-* effects（位于io.js文件中）：定义用来产生effect的方法，例如我们用的`take`，`put`等方法，这些方法返回的结果都是一个effect。
+* effects（位于io.js文件中）：定义用来产生effect的方法，例如我们用的`take`，`put`等方法，这些方法返回的结果都是一个effect。我们定义effect的结构如下：
+
+  ```javascript
+  {
+  	payload:{
+      fn, context
+      // ... 需要传给effectRunner来运行的东西
+    },
+  	type: effectType // TAKE, PUT, CALL等
+  
+  ```
+
+  
+
 * effectRunner（位于effectRunnerMap.js文件中）：这部分定义了用来执行每种类型effect的方法，例如，`take()`操作产生的effect需要`takeEffectRunner()`方法来执行
+
 * channel（位于channel.js文件中）：通道定义文件，通道可用于在saga之间通信，也可以用来缓存消息
+
 * forkQueue（位于forkQueue.js文件中）：定义了管理fork task的队列，`fork()`方法会创建另一个task，产生的task会由forkQueue来管理
+
 * util（位于utils.js文件中）：定义了一些工具方法
 
 
