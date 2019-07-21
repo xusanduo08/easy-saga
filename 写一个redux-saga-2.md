@@ -47,7 +47,7 @@ function* subGen(){
 
 runner去执行对应effect之后，需要将执行结果返回，并继续执行主程序，所以effectRunner中需要传入一个cb（callback），来告诉effectRunner副作用执行完毕后该干啥。
 
-此外，effect 是可取消的，每个effectRunner需要给传入的cb设置一个cancel方法，告诉主任务如何取消当前的effect。
+effect和task 是可取消的，每个effectRunner需要给传入的cb设置一个cancel方法，告诉主任务如何取消当前的effect；每个task也都需要设置一个cancel方法，以便能够被取消。对于附属task，附属task需要将自己的取消方法设置给自己的主回调（mainCb）上。
 
 需要注意一点，已完成的effect不能再取消，已取消的effect也不能再继续下去。在`digestEffect()`中我们会保证这个互斥关系。
 
@@ -57,6 +57,7 @@ import deferred from  './utils/deferred';
 import {is} from './utils/is';
 import newTask from'./task';
 import noop from './utils/noop';
+import * as taskStatus from './utils/taskStatus'
 
 /**
   iterator: 迭代器
@@ -64,16 +65,19 @@ import noop from './utils/noop';
   name: generator的名字
 */
 function proc(iterator, mainCb, name){
-  next();
-  let mainTask = {};
+  
+  let mainTask = {status: taskStatus.RUNNING, name};
   let def = deferred();
   let task = newTask(def, name, mainTask, mainCb);
   mainTask.cancel = function(){
-  if(mainTask.status === 'RUNNING'){
-    mainTask.status = 'CANCELLED';
-    next.cancel('cancel_task');
+    if(mainTask.status === taskStatus.RUNNING){
+      mainTask.status = taskStatus.CANCELLED;
+      next.cancel('cancel_task');
+    }
   }
-  }
+  next();
+  return task
+    
   function next(arg, isErr){
     try{
       let result;
@@ -94,16 +98,17 @@ function proc(iterator, mainCb, name){
         mainTask.cont();
       }      
     }catch(e){
-      mainTask = 'ABORTED';
+      mainTask = taskStatus.ABORTED;
       mainTask.cont(e, true); // 任务出错时终止当前任务，并将错误信息向上传播
     }
   }
   
   function runEffect(effect, currCb){
     currCb.cancel = noop;
-    if(is.iterator(effect)){ // 如果是个迭代器
+    //分情况处理effect：Promise, iterator, effect, 普通方法/变量
+    if(is.iterator(effect)){
       proc(effect)
-    } else (is.promise(effect)){ // 如果是个promise
+    } else (is.promise(effect)){
       effect.then(currCb, error => {
         currCb(error, true)
       })
