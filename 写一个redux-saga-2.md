@@ -29,10 +29,6 @@ it.next(4); // 4 {value: undefined, done: true}
 
 
 
-
-
-
-
 为了满足iterator的运行，采用递归来消耗iterator。proc有个`next()`方法，该方法会被不断调用以来消耗iterator。
 
 在generator中，`yield`语句后面可以跟普通方法、Promise、或者另一个generator方法。yield后面跟着的其实就是我们期望执行的副作用effect，每种effect都会有个对应的effectRunner来执行。
@@ -51,42 +47,68 @@ function* subGen(){
 
 runner去执行对应effect之后，需要将执行结果返回，并继续执行主程序，所以effectRunner中需要传入一个cb（callback），来告诉effectRunner副作用执行完毕后该干啥。
 
-此外，effect 是可取消的，每个effectRunner需要给传入的cb设置一个cancel方法，告诉主任务如何取消当前的effect。
+effect和task 是可取消的，每个effectRunner需要给传入的cb设置一个cancel方法，告诉主任务如何取消当前的effect；每个task也都需要设置一个cancel方法，以便能够被取消。对于附属task，附属task需要将自己的取消方法设置给自己的主回调（mainCb）上。
 
 需要注意一点，已完成的effect不能再取消，已取消的effect也不能再继续下去。在`digestEffect()`中我们会保证这个互斥关系。
 
 ```javascript
 import effectRunner from './effectRunner.js'；
+import deferred from  './utils/deferred';
+import {is} from './utils/is';
+import newTask from'./task';
+import noop from './utils/noop';
+import * as taskStatus from './utils/taskStatus'
 
-
-function proc(iterator){
-  next();
-	
-  function next(arg, isErr){
-    let result;
-    if(isErr){
-      result = iterator.throw(arg);
-    } else if(arg === 'cancel_task'){
-      next.cancel(); // 任务在取消时同时要取消当前还在运行着的effect
-      result = is.func(iterator.return) ? 
-        iterator.return('cancel_task'): {value:'cancel_task'done: true}
-    } else {
-      result = iterator.next(arg);
+/**
+  iterator: 迭代器
+  mainCb：当前任务完成后的回调
+  name: generator的名字
+*/
+function proc(iterator, mainCb, name){
+  
+  let mainTask = {status: taskStatus.RUNNING, name};
+  let def = deferred();
+  let task = newTask(def, name, mainTask, mainCb);
+  mainTask.cancel = function(){
+    if(mainTask.status === taskStatus.RUNNING){
+      mainTask.status = taskStatus.CANCELLED;
+      next.cancel('cancel_task');
     }
-    if(!result.done){
-      // TODO 根据result.value进行相应的操作
-      digest(result.value, next)
-    } else {
-      // TODO 任务结束
-      mainTask.cont();
+  }
+  next();
+  return task
+    
+  function next(arg, isErr){
+    try{
+      let result;
+      if(isErr){
+        result = iterator.throw(arg);
+      } else if(arg === 'cancel_task'){
+        next.cancel(); // 任务在取消时同时要取消当前还在运行着的effect
+        result = is.func(iterator.return) ? 
+        iterator.return('cancel_task'): {value:'cancel_task'done: true}
+      } else {
+        result = iterator.next(arg);
+      }
+      if(!result.done){
+        // TODO 根据result.value进行相应的操作
+        digest(result.value, next)
+      } else {
+        // TODO 任务结束
+        mainTask.cont();
+      }      
+    }catch(e){
+      mainTask = taskStatus.ABORTED;
+      mainTask.cont(e, true); // 任务出错时终止当前任务，并将错误信息向上传播
     }
   }
   
   function runEffect(effect, currCb){
     currCb.cancel = noop;
-    if(typeof effect.next === 'function'){ // 如果是个迭代器
+    //分情况处理effect：Promise, iterator, effect, 普通方法/变量
+    if(is.iterator(effect)){
       proc(effect)
-    } else (typeof effect.then === 'function'){ // 如果是个promise
+    } else (is.promise(effect)){
       effect.then(currCb, error => {
         currCb(error, true)
       })
@@ -105,6 +127,7 @@ function proc(iterator){
         return
       }
       settled = true;
+      cb.cancel = noop;
       cb(res, isErr)
     }
     cb.cancel = () => {
@@ -119,3 +142,5 @@ function proc(iterator){
   }
 }
 ```
+
+本节代码地址：https://github.com/xusanduo08/easy-saga/tree/master/%E5%86%99%E4%B8%80%E4%B8%AAredux-saga-2
