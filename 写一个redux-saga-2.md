@@ -9,8 +9,8 @@ mainTask具有一个cont方法，mainTask结束或者运行出错时会执行con
 
 - task是可取消的（调用task.cancel()方法）
 - 父任务取消时会带着未完成的子任务一起取消
-- 当task运行出错时，task会aborted，一个任务aborted，则其父任务也会aborted，兄弟任务也会aborted
-- task可以被手动停止（调用task.end()方法）
+- 当task运行出错时，task会aborted，其父任务也会aborted，兄弟任务则会取消
+- task可以被手动停止（调用task.end()方法），此时，其下fork task不会受影响，依然能继续执行
 
 ![](./img/saga代码调用结构.png)
 
