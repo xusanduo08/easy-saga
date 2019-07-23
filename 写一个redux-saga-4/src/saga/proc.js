@@ -9,7 +9,7 @@ function proc(env, iterator, mainCb, name){
   let mainTask = {status: taskStatus.RUNNING, name};
   let def = {};
 
-  let promise = new Promise((resolve, reject) => {
+  let promise = new Promise((resolve, reject) => { // 为什么不直接用deferred()?我也想不明白。。。。。
     def.resolve = resolve;
     def.reject = reject;
   }).catch(e => console.log(e))
