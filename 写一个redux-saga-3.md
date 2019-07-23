@@ -89,7 +89,7 @@ function forkQueue(mainTask, end){
         return
       }
       remove(queue, task); // 当前任务已执行过，从父任务队列中移除
-      if(isErr){ // 执行当前任务时出错，取消所有兄弟任务，并将错误上报
+      if(isErr){ // 执行当前任务时出错，取消任务队列中其他任务，并将错误上报
         cancellAll();
         end(res, isErr)
       } else {
@@ -124,3 +124,6 @@ function forkQueue(mainTask, end){
 }
 ```
 
+
+
+本节代码地址：[https://github.com/xusanduo08/easy-saga/tree/master/%E5%86%99%E4%B8%80%E4%B8%AAredux-saga-3](https://github.com/xusanduo08/easy-saga/tree/master/写一个redux-saga-3)
