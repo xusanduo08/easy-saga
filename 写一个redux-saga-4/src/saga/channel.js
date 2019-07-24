@@ -49,7 +49,7 @@ export const channel = (buffers)=>{
         takers = [];
         return;
       }
-      if(takers.length == 0){ // 如果没有指定的take匹配的话，则缓存
+      if(takers.length === 0){ // 如果没有指定的take匹配的话，则缓存
         return buffers.push(action);
       }
       let taker = takers.shift();
