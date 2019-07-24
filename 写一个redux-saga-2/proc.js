@@ -1,17 +1,23 @@
 import * as is from './utils/is';
 import noop from './utils/noop';
-import deferred from './utils/deferred';
 import * as taskStatus from './utils/taskStatus';
 
 function proc(env, iterator, mainCb, name){
   let mainTask = {status: taskStatus.RUNNING, name};
-  let def = deferred();
+  let def = {};
+
+  let promise = new Promise((resolve, reject) => { // 为什么不直接用deferred()?我也想不明白。。。。。
+    def.resolve = resolve;
+    def.reject = reject;
+  }).catch(e => console.log(e))
+  def.promise = promise;
+
   let task = newTask(def, name, mainTask, mainCb);
 
   mainTask.cancel = () => {
     if(mainTask.status === taskStatus.RUNNING){
       mainTask.status = taskStatus.CANCELLED;
-      next.cancel('cancel_task');
+      next('cancel_task');
     }
   }
   mainCb.cancl = task.cancel; // 如果当前task是个附属task，则需要给mainCb设置cancel方法，便于父task的取消动作
@@ -69,6 +75,7 @@ function proc(env, iterator, mainCb, name){
       if(settled){
         return
       }
+      settled = true;
       cb.cancel = noop;
       cb(arg, isErr)
     }
