@@ -25,11 +25,6 @@ export default function newTask(def, name, mainTask, cont){
       def.resolve(res);
     } else {
       status = taskStatus.ABORTED;
-      if(!res){
-        debugger;
-        console.log(22, task.name, def.name)
-        res=def.name
-      }
       def.reject(res);
     }
     
