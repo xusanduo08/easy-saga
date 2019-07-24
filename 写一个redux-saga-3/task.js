@@ -1,4 +1,4 @@
-import taskStatus from './utils/taskStatus';
+import * as taskStatus from './utils/taskStatus';
 import noop from './utils/noop';
 import remove from './utils/remove';
 
@@ -9,7 +9,7 @@ import remove from './utils/remove';
  * @param {*} name saga方法名
  * @param {*} cont task完成时，需要执行的回调。如果该任务是个fork task，那么其cont方法会被父task重写
  */
-export function newTask(def, name, mainTask, cont){
+export default function newTask(def, name, mainTask, cont){
   let queue = forkQueue(mainTask, end);
   let status = taskStatus.RUNNING;
   let taskResult;
@@ -17,21 +17,22 @@ export function newTask(def, name, mainTask, cont){
   function end(res, isErr){ // 任务出错，取消，完成都会调用end，来将信息上传到上一层任务对象（通过task.cont方法）
     if(!isErr){
       if(res === 'cancel_task'){
-        satus = taskStatus.CANCELLED
+        status = taskStatus.CANCELLED
       } else if(status !== taskStatus.CANCELLED){
-        status = taskStatus.DONe
+        status = taskStatus.DONE
       }
       taskResult = res;
       def.resolve(res);
     } else {
       status = taskStatus.ABORTED;
-      def.reject(res, isErr);
+      def.reject(res);
     }
-    task.cont(res, isErr);
+    
     task.joiners.forEach(joiner => { // 执行等待该任务的回调
       joiner.cb(res)
     })
     task.joiners = null;
+    task.cont(res, isErr);
   }
 
   /**
@@ -51,7 +52,7 @@ export function newTask(def, name, mainTask, cont){
     cont,
     status,
     isRunning: () => status === taskStatus.RUNNING,
-    isCancelled: () => status === taskStatus.CANCELLED,
+    isCancelled: () => status === taskStatus.CANCELLED || (status === taskStatus.RUNNING && mainTask.status === taskStatus.CANCELLED),
     isAborted: () => status === taskStatus.ABORTED,
     result: () => taskResult,
     cancel,
@@ -60,6 +61,7 @@ export function newTask(def, name, mainTask, cont){
     joiners: [],
     toPromise: () => def.promise
   }
+  return task
 }
 
 /**
@@ -73,7 +75,9 @@ function forkQueue(mainTask, end){
   let result;
   let completed = false;
 
+  addTask(mainTask);
   function addTask(task){
+    queue.push(task);
     task.cont = (res, isErr) => {
       if(completed){
         return
@@ -98,6 +102,7 @@ function forkQueue(mainTask, end){
     if(completed){
       return
     }
+    completed = true;
     queue.forEach(task => {
       task.cont = noop;
       task.cancel();
