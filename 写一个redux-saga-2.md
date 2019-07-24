@@ -5,12 +5,7 @@ mainTask具有一个cont方法，mainTask结束或者运行出错时会执行con
 
 
 
-关于task，有以下几个特点：
-
-- task是可取消的（调用task.cancel()方法）
-- 父任务取消时会带着未完成的子任务一起取消
-- 当task运行出错时，task会aborted，其父任务也会aborted，兄弟任务则会取消
-- task可以被手动停止（调用task.end()方法），此时，其下fork task不会受影响，依然能继续执行
+saga代码调用结构：
 
 ![](./img/saga代码调用结构.png)
 
@@ -64,17 +59,26 @@ import * as taskStatus from './utils/taskStatus'
   mainCb：当前任务完成后的回调
   name: generator的名字
 */
-function proc(iterator, mainCb, name){
+function proc(env, iterator, mainCb, name){
   
   let mainTask = {status: taskStatus.RUNNING, name};
-  let def = deferred();
+  let def = {};
+  // 为什么不直接用deferred()?我也想不明白。。。。。
+  let promise = new Promise((resolve, reject) => { 
+    def.resolve = resolve;
+    def.reject = reject;
+  }).catch(e => console.log(e))
+  def.promise = promise;
   let task = newTask(def, name, mainTask, mainCb);
   mainTask.cancel = function(){
     if(mainTask.status === taskStatus.RUNNING){
       mainTask.status = taskStatus.CANCELLED;
-      next.cancel('cancel_task');
+      next('cancel_task');
     }
   }
+  
+  // 如果当前task是个附属task，则需要给mainCb设置cancel方法，便于父task的取消动作
+  mainCb.cancel = task.cancel;
   next();
   return task
     
@@ -91,11 +95,9 @@ function proc(iterator, mainCb, name){
         result = iterator.next(arg);
       }
       if(!result.done){
-        // TODO 根据result.value进行相应的操作
         digest(result.value, next)
       } else {
-        // TODO 任务结束
-        mainTask.cont();
+        mainTask.cont(result.value, isErr);
       }      
     }catch(e){
       mainTask = taskStatus.ABORTED;
@@ -107,7 +109,7 @@ function proc(iterator, mainCb, name){
     currCb.cancel = noop;
     //分情况处理effect：Promise, iterator, effect, 普通方法/变量
     if(is.iterator(effect)){
-      proc(effect)
+      proc(env, effect, currCb)
     } else (is.promise(effect)){
       effect.then(currCb, error => {
         currCb(error, true)
