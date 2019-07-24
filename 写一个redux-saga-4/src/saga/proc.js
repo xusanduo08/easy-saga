@@ -78,6 +78,7 @@ function proc(env, iterator, mainCb, name){
       if(settled){
         return
       }
+      settled = true;
       cb.cancel = noop;
       cb(arg, isErr)
     }
