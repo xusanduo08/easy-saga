@@ -47,7 +47,7 @@ function runTakeEffect(env, { channel = env.channel, pattern }, cb, {parentTask}
 
 
 
-感觉没啥要写的，saga进本的功能目前已经具备(call, fork, take, put, select, cancel, join, all, race)。总结下代码吧：
+感觉没啥要写的，saga基本的功能目前已经具备(call, fork, take, put, select, cancel, join, all, race)。总结下代码吧：
 
 [https://github.com/xusanduo08/easy-saga/tree/master/%E5%86%99%E4%B8%80%E4%B8%AAredux-saga-4](https://github.com/xusanduo08/easy-saga/tree/master/写一个redux-saga-4)
 
