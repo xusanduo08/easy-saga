@@ -40,12 +40,11 @@ saga结构大致有以下几个部分：
 
   ```javascript
   {
-  	payload:{
-      fn, context
-      // ... 需要传给effectRunner的参数
+    payload:{
+      fn, context // ... 需要传给effectRunner的参数
     },
-  	type: effectType // TAKE, PUT, CALL等
-  
+    type: effectType // TAKE, PUT, CALL等
+  }
   ```
 
   
@@ -91,16 +90,18 @@ saga中间件在获取到action后，需要决定是否要采取相应的动作�
 function stdChannel(){
   let takers = []; // 用来放置action和cb
   function put(action){ // 将action推入管道
-  let currTakers = takers.concat([]); // 防止遍历的时候takers发生变化
-  let desTakes = []; // 用来保存回调已经被执行的taker的索引，遍历结束后用来过滤takers
-  currTakers.forEach((take, index) => {
-    if(take.action.type === action.type){
-      desTakes.push(index);
-      cb(action);
-    }
-  })
-  takers = takers.filter((item, index) => !(desTakes.indexOf(index) >=0));
-  
+    // 防止遍历的时候takers发生变化
+    let currTakers = takers.concat([]);
+    // 用来保存回调已经被执行的taker的索引，遍历结束后用来过滤takers
+    let desTakes = []; 
+    currTakers.forEach((take, index) => {
+      if(take.action.type === action.type){
+        desTakes.push(index);
+        cb(action);
+      }
+    })
+    takers = takers.filter((item, index) => !(desTakes.indexOf(index) >=0));
+  }
   function take(action, cb){ // 注册action和对应的操作cb
     takers.push({action, cb});
   }
